@@ -425,7 +425,6 @@
     </div>
 
     <div class="share-row">
-      <button class="share-btn kakao" onclick="shareImage()">📤 카톡 보내기</button>
       <button class="share-btn save" onclick="saveImage()">🖼️ 이미지 저장</button>
       <button class="share-btn" onclick="window.open('https://blog.naver.com/honey-pot-','_blank')">🍯 꿀단지 블로그</button>
     </div>
@@ -948,48 +947,6 @@ function saveImage() {
     link.click();
   }).catch(e => {
     console.error(e);
-  });
-}
-
-function shareImage() {
-  const name = document.getElementById('resultName').textContent;
-  const sub = document.getElementById('resultSub').textContent;
-  const shareText = `🍯 꿀단지 사주팔자\n${name}\n${sub}\n\n내 사주도 무료로 보기 → https://galmegiking-collab.github.io/saju-app/saju.html\n\n블로그 꿀단지 🍯 https://blog.naver.com/honey-pot-`;
-
-  captureCanvas().then(canvas => {
-    canvas.toBlob(blob => {
-      if (!blob) { fallbackShare(shareText); return; }
-      const file = new File([blob], '꿀단지_사주팔자.png', { type: 'image/png' });
-
-      // 모바일에서 이미지+텍스트 동시 공유 가능한 경우 (Web Share API Level 2)
-      if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        navigator.share({
-          files: [file],
-          title: '🍯 꿀단지 사주팔자',
-          text: shareText,
-        }).catch(err => {
-          // 사용자가 취소한 경우는 조용히 무시
-          if (err.name !== 'AbortError') console.warn('공유 실패', err);
-        });
-      } else {
-        // 미지원 환경(주로 PC) - 이미지 다운로드 + 안내
-        const link = document.createElement('a');
-        link.download = '꿀단지_사주팔자.png';
-        link.href = canvas.toDataURL('image/png');
-        link.click();
-        fallbackShare(shareText);
-      }
-    }, 'image/png');
-  }).catch(e => {
-    console.error(e);
-  });
-}
-
-function fallbackShare(shareText) {
-  navigator.clipboard.writeText(shareText).then(() => {
-    alert('📱 모바일에서는 사진+글이 한번에 공유돼요!\n\nPC에서는 이미지가 저장됐고, 공유 문구도 복사됐어요.\n카톡 보낼 때 저장된 사진을 첨부하고 복사된 문구를 붙여넣어 주세요 🍯');
-  }).catch(() => {
-    alert('📱 모바일에서는 사진+글이 한번에 공유돼요!\n\nPC에서는 이미지가 저장됐어요. 카톡 보낼 때 저장된 사진을 첨부해주세요 🍯');
   });
 }
 </script>
