@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>꿀단지 사주팔자 🍯</title>
-<script src="https://t1.kakaocdn.net/kakao_js_sdk/2.7.2/kakao.min.js"></script>
 <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;700;900&family=Noto+Sans+KR:wght@300;400;500;700&display=swap');
@@ -426,7 +425,7 @@
     </div>
 
     <div class="share-row">
-      <button class="share-btn kakao" onclick="shareKakao()">💬 카톡 공유</button>
+      <button class="share-btn kakao" onclick="shareImage()">📤 카톡 보내기</button>
       <button class="share-btn save" onclick="saveImage()">🖼️ 이미지 저장</button>
       <button class="share-btn" onclick="window.open('https://blog.naver.com/honey-pot-','_blank')">🍯 꿀단지 블로그</button>
     </div>
@@ -932,63 +931,65 @@ function renderTodayFortune(dCg, dJj) {
   document.getElementById('todayText').innerHTML = `오늘은 나에게 <strong>${sipsinName}</strong> 기운이 들어오는 날이에요. ${todayTextMap[sipsinName]} 🍯`;
 }
 
-let kakaoInited = false;
-function initKakao() {
-  if (kakaoInited) return;
-  try {
-    if (window.Kakao && !window.Kakao.isInitialized()) {
-      window.Kakao.init('9ddafafd50b0d86a88eda2b9609d4567');
-    }
-    kakaoInited = true;
-  } catch(e) { console.warn('Kakao init failed', e); }
-}
-
-function shareKakao() {
-  initKakao();
-  const name = document.getElementById('resultName').textContent;
-  const sub = document.getElementById('resultSub').textContent;
-  const honeyFull = document.getElementById('honeyText').innerText || '';
-  const honeySnippet = honeyFull.length > 60 ? honeyFull.slice(0, 60) + '...' : honeyFull;
-
-  if (window.Kakao && window.Kakao.Share) {
-    try {
-      window.Kakao.Share.sendDefault({
-        objectType: 'feed',
-        content: {
-          title: `🍯 ${name}`,
-          description: `${sub}\n${honeySnippet}`,
-          imageUrl: 'https://galmegiking-collab.github.io/saju-app/og-image.png',
-          link: { mobileWebUrl: location.href, webUrl: location.href }
-        },
-        buttons: [{ title: '나도 사주 보러가기 🔮', link: { mobileWebUrl: location.href, webUrl: location.href } }]
-      });
-      return;
-    } catch(e) { console.warn('Kakao share failed, fallback to copy', e); }
+function captureCanvas() {
+  const target = document.getElementById('captureArea');
+  if (!window.html2canvas) {
+    alert('캡처 기능을 불러오는 중이에요. 잠시 후 다시 시도해주세요.');
+    return Promise.reject('html2canvas not loaded');
   }
-  copyResult();
+  return html2canvas(target, { backgroundColor: '#fef9ef', scale: 2 });
 }
 
 function saveImage() {
-  const target = document.getElementById('captureArea');
-  if (!window.html2canvas) { alert('이미지 저장 기능을 불러오는 중이에요. 잠시 후 다시 시도해주세요.'); return; }
-  html2canvas(target, { backgroundColor: '#fef9ef', scale: 2 }).then(canvas => {
+  captureCanvas().then(canvas => {
     const link = document.createElement('a');
     link.download = '꿀단지_사주팔자.png';
     link.href = canvas.toDataURL('image/png');
     link.click();
   }).catch(e => {
     console.error(e);
-    alert('이미지 저장에 실패했어요. 다시 시도해주세요.');
   });
 }
 
-function copyResult() {
+function shareImage() {
   const name = document.getElementById('resultName').textContent;
   const sub = document.getElementById('resultSub').textContent;
-  const honey = document.getElementById('honeyText').innerText;
-  const text = `🍯 꿀단지 사주팔자\n${name}\n${sub}\n\n${honey}\n\nhttps://galmegiking-collab.github.io`;
-  navigator.clipboard.writeText(text).then(() => {
-    alert('결과가 복사되었어요! 🍯');
+  const shareText = `🍯 꿀단지 사주팔자\n${name}\n${sub}\n\n내 사주도 무료로 보기 → https://galmegiking-collab.github.io/saju-app/saju.html\n\n블로그 꿀단지 🍯 https://blog.naver.com/honey-pot-`;
+
+  captureCanvas().then(canvas => {
+    canvas.toBlob(blob => {
+      if (!blob) { fallbackShare(shareText); return; }
+      const file = new File([blob], '꿀단지_사주팔자.png', { type: 'image/png' });
+
+      // 모바일에서 이미지+텍스트 동시 공유 가능한 경우 (Web Share API Level 2)
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        navigator.share({
+          files: [file],
+          title: '🍯 꿀단지 사주팔자',
+          text: shareText,
+        }).catch(err => {
+          // 사용자가 취소한 경우는 조용히 무시
+          if (err.name !== 'AbortError') console.warn('공유 실패', err);
+        });
+      } else {
+        // 미지원 환경(주로 PC) - 이미지 다운로드 + 안내
+        const link = document.createElement('a');
+        link.download = '꿀단지_사주팔자.png';
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+        fallbackShare(shareText);
+      }
+    }, 'image/png');
+  }).catch(e => {
+    console.error(e);
+  });
+}
+
+function fallbackShare(shareText) {
+  navigator.clipboard.writeText(shareText).then(() => {
+    alert('📱 모바일에서는 사진+글이 한번에 공유돼요!\n\nPC에서는 이미지가 저장됐고, 공유 문구도 복사됐어요.\n카톡 보낼 때 저장된 사진을 첨부하고 복사된 문구를 붙여넣어 주세요 🍯');
+  }).catch(() => {
+    alert('📱 모바일에서는 사진+글이 한번에 공유돼요!\n\nPC에서는 이미지가 저장됐어요. 카톡 보낼 때 저장된 사진을 첨부해주세요 🍯');
   });
 }
 </script>
