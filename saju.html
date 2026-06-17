@@ -75,7 +75,7 @@
     display: block; font-size: .72rem; font-weight: 500;
     color: var(--muted); margin-bottom: 5px; letter-spacing: .06em;
   }
-  select, input[type="date"] {
+  select, input[type="date"], input[type="text"] {
     width: 100%; padding: 10px 12px; border: 1.5px solid var(--border);
     border-radius: 10px; font-family: 'Noto Sans KR', sans-serif; font-size: .88rem;
     background: var(--paper); color: var(--ink); appearance: none; -webkit-appearance: none;
@@ -102,6 +102,10 @@
   #result { display: none; }
 
   .result-header { text-align: center; margin: 28px 0 16px; }
+  .result-username {
+    font-family: 'Noto Serif KR', serif; font-size: 1.05rem; font-weight: 700;
+    color: var(--gold); margin-bottom: 4px;
+  }
   .result-name {
     font-family: 'Noto Serif KR', serif; font-size: 1.25rem; font-weight: 900; color: var(--ink);
   }
@@ -186,6 +190,16 @@
   }
   .sipsin-desc { font-size: .78rem; color: var(--ink); line-height: 1.5; }
   .sipsin-desc b { color: var(--gold); }
+
+  .sipsin-guide { background: linear-gradient(135deg, #fff9e6 0%, #fdf3d0 100%); border-color: var(--gold); }
+  .guide-intro { font-size: .8rem; line-height: 1.6; color: #3a2e1a; margin-bottom: 14px; }
+  .guide-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+  .guide-col { background: rgba(255,255,255,.6); border-radius: 10px; padding: 10px 12px; }
+  .guide-col-label { font-size: .68rem; font-weight: 700; color: var(--gold); margin-bottom: 8px; }
+  .guide-row { font-size: .75rem; color: var(--ink); line-height: 1.7; }
+  .guide-row b { color: var(--ink); font-weight: 700; margin-right: 4px; }
+  .guide-footer { font-size: .76rem; line-height: 1.6; color: #3a2e1a; border-top: 1px dashed var(--gold); padding-top: 12px; }
+  .guide-footer b { color: var(--gold); }
 
   .sinsal-grid { display: flex; flex-wrap: wrap; gap: 8px; }
   .sinsal-chip {
@@ -295,6 +309,13 @@
 
     <div class="field-row single">
       <div>
+        <label>👤 이름 (선택)</label>
+        <input type="text" id="userName" placeholder="이름을 입력해주세요" maxlength="10">
+      </div>
+    </div>
+
+    <div class="field-row single">
+      <div>
         <label>📅 생년월일</label>
         <input type="date" id="birthDate" value="1990-01-01" min="1900-01-01" max="2025-12-31">
       </div>
@@ -351,6 +372,7 @@
     <div id="captureArea">
 
       <div class="result-header">
+        <div class="result-username" id="resultUserName"></div>
         <div class="result-name" id="resultName"></div>
         <div class="result-sub" id="resultSub"></div>
       </div>
@@ -386,6 +408,28 @@
       </div>
 
       <div class="tab-panel" id="panel-sipsin">
+        <div class="section-card sipsin-guide">
+          <h3>📖 용어가 헷갈리나요?</h3>
+          <p class="guide-intro">사주는 4개의 기둥(연주·월주·일주·시주)으로 되어 있고, 기둥마다 위(천간)·아래(지지) 두 글자씩 있어요. 그래서 8글자, 사주팔자예요!</p>
+          <div class="guide-grid">
+            <div class="guide-col">
+              <div class="guide-col-label">위 칸 (천간)</div>
+              <div class="guide-row"><b>연간</b> 태어난 해의 윗글자</div>
+              <div class="guide-row"><b>월간</b> 태어난 달의 윗글자</div>
+              <div class="guide-row"><b>일간</b> 태어난 날의 윗글자 (= 나 자신)</div>
+              <div class="guide-row"><b>시간</b> 태어난 시각의 윗글자</div>
+            </div>
+            <div class="guide-col">
+              <div class="guide-col-label">아래 칸 (지지)</div>
+              <div class="guide-row"><b>연지</b> 태어난 해의 아래글자</div>
+              <div class="guide-row"><b>월지</b> 태어난 달의 아래글자</div>
+              <div class="guide-row"><b>일지</b> 태어난 날의 아래글자</div>
+              <div class="guide-row"><b>시지</b> 태어난 시각의 아래글자</div>
+            </div>
+          </div>
+          <p class="guide-footer">아래 십신 분석은 <b>일간(나)</b>을 기준으로, 나머지 7글자가 나에게 어떤 의미인지 풀어준 거예요. 비견·겁재처럼 낯선 이름들은 그 글자가 나와 어떤 관계인지를 나타내는 호칭일 뿐이에요.</p>
+        </div>
+
         <div class="section-card">
           <h3>🔑 십신(十神) 분석</h3>
           <p style="font-size:.75rem;color:var(--muted);margin-bottom:14px;">일간(나)을 기준으로 다른 글자들이 어떤 역할을 하는지 보여줘요</p>
@@ -716,6 +760,7 @@ function calculate() {
   const dateVal = document.getElementById('birthDate').value;
   if (!dateVal) { alert('생년월일을 입력해주세요!'); return; }
 
+  const userName = document.getElementById('userName').value.trim();
   const [y, m, d] = dateVal.split('-').map(Number);
   const hourVal = parseInt(document.getElementById('birthHour').value);
   const calType = document.getElementById('calType').value;
@@ -859,6 +904,7 @@ function calculate() {
 
       const gzYear = `${CHEONGAN_KR[yCg]}${JIJI_KR[yJj]}년`;
       const zodiac = JIJI_ZOO[yJj];
+      document.getElementById('resultUserName').textContent = userName ? `🍯 ${userName}님의 사주` : '';
       document.getElementById('resultName').textContent = `${gzYear}(${zodiac}띠) · ${calType==='lunar'?'음력':'양력'} ${y}.${String(m).padStart(2,'0')}.${String(d).padStart(2,'0')}`;
       document.getElementById('resultSub').textContent = `일간: ${CHEONGAN_KR[dCg]} · ${selectedGender==='M'?'남성':'여성'} · ${OHAENG_NAMES[strongest]} 강`;
 
