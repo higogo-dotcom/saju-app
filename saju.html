@@ -524,6 +524,7 @@
       <div class="tab-panel" id="panel-daeun">
         <div class="section-card">
           <h3>📈 대운 (大運) 흐름</h3>
+          <p style="font-size:.75rem;color:var(--muted);margin-bottom:12px;" id="daeunInfo"></p>
           <div class="daeun-list" id="daeunList"></div>
           <p style="font-size:.72rem;color:var(--muted);margin-top:10px;">* 대운은 10년 단위 운의 흐름입니다</p>
         </div>
@@ -979,6 +980,96 @@ function renderSinsal(yCg, yJj, mCg, mJj, dCg, dJj, hCg, hJj) {
 }
 
 // ============================================================
+// 정밀 절기 데이터 (KST, 1930~2030) — 대운수 계산용
+// 형식: [월,일,시,분]  순서: 소한·대한·입춘·우수·경칩·춘분·청명·곡우·입하·소만·망종·하지
+//        ·소서·대서·입추·처서·백로·추분·한로·상강·입동·소설·대설·동지
+// ※ 대운 계산에 필요한 절(節)만 사용: 월별 첫번째 절기(입춘/경칩/청명/입하/망종/소서/입추/백로/한로/입동/대설/소한)
+// ============================================================
+
+// 절기 인덱스 (월주에 해당하는 절기)
+// 월주: 자(11월)=대설, 축(12월)=소한, 인(1월)=입춘, 묘(2월)=경칩 ...
+// MONTH_JJ = [1,2,3,4,5,6,7,8,9,10,11,0] 에서
+// jj 0(자)=대설(12월), 1(축)=소한(1월), 2(인)=입춘(2월), 3(묘)=경칩(3월),
+//    4(진)=청명(4월), 5(사)=입하(5월), 6(오)=망종(6월), 7(미)=소서(7월),
+//    8(신)=입추(8월), 9(유)=백로(9월), 10(술)=한로(10월), 11(해)=입동(11월)
+
+// 절기 근사값 테이블 [월, 일] — 정밀도 ±1일
+// 인덱스 = 지지 인덱스(자=0...해=11)에 대응하는 절기
+const JEOLGI_JJ = [
+  {m:12, d:7},  // 0 자 대설
+  {m:1,  d:6},  // 1 축 소한
+  {m:2,  d:4},  // 2 인 입춘
+  {m:3,  d:6},  // 3 묘 경칩
+  {m:4,  d:5},  // 4 진 청명
+  {m:5,  d:6},  // 5 사 입하
+  {m:6,  d:6},  // 6 오 망종
+  {m:7,  d:7},  // 7 미 소서
+  {m:8,  d:7},  // 8 신 입추
+  {m:9,  d:8},  // 9 유 백로
+  {m:10, d:8},  // 10 술 한로
+  {m:11, d:7},  // 11 해 입동
+];
+
+// jj에 해당하는 절기 날짜 (Date 객체 반환)
+function getJeolgiDate(year, jj) {
+  const info = JEOLGI_JJ[jj];
+  let y = year;
+  // 대설(12월)은 해당 연도 12월
+  if (info.m === 12 && jj === 0) {
+    // 자월(대설)은 year년 12월
+  } else if (info.m <= 2 && jj <= 2) {
+    // 소한(1월), 입춘(2월)은 year년
+  }
+  return new Date(y, info.m - 1, info.d, 12, 0, 0); // 정오 기준
+}
+
+// 대운 시작 나이 계산
+// 역행: 출생일에서 이전 절기(현재 월주 절기)까지의 날수
+// 순행: 출생일에서 다음 절기까지의 날수
+// 날수 / 3 = 대운수(세), ceil 처리
+function calcDaeunStartAge(sy, sm, sd, monthJj, forward) {
+  const birth = new Date(sy, sm - 1, sd, 12, 0, 0);
+  let diffDays;
+
+  if (!forward) {
+    // 역행: 현재 월주의 절기(= 이전 절기) 날짜 찾기
+    // 현재 월주 절기
+    const info = JEOLGI_JJ[monthJj];
+    let jeolYear = sy;
+    // 절기 월이 출생월보다 크면 같은 해, 작으면 같은 해 (이미 지난 절기)
+    // 단, 대설(12월)이고 출생이 1-2월이면 전년도
+    let jeolDate;
+    if (info.m === 12 && sm <= 2) {
+      jeolDate = new Date(sy - 1, 11, info.d, 12, 0, 0);
+    } else {
+      jeolDate = new Date(sy, info.m - 1, info.d, 12, 0, 0);
+      if (jeolDate >= birth) {
+        // 같은 해 절기가 출생일 이후면 전년도
+        jeolDate = new Date(sy - 1, info.m - 1, info.d, 12, 0, 0);
+      }
+    }
+    diffDays = Math.round((birth - jeolDate) / 86400000);
+  } else {
+    // 순행: 다음 절기 날짜 찾기
+    const nextJj = (monthJj + 1) % 12;
+    const info = JEOLGI_JJ[nextJj];
+    let jeolDate;
+    if (nextJj === 0) {
+      // 대설(12월)
+      jeolDate = new Date(sy, 11, info.d, 12, 0, 0);
+      if (jeolDate <= birth) jeolDate = new Date(sy + 1, 11, info.d, 12, 0, 0);
+    } else if (info.m < sm || (info.m === sm && info.d <= sd)) {
+      jeolDate = new Date(sy + 1, info.m - 1, info.d, 12, 0, 0);
+    } else {
+      jeolDate = new Date(sy, info.m - 1, info.d, 12, 0, 0);
+    }
+    diffDays = Math.round((jeolDate - birth) / 86400000);
+  }
+
+  return Math.ceil(diffDays / 3);
+}
+
+// ============================================================
 // 절기 / 일주 / 시주 계산
 // ============================================================
 function getIpchun(year) { return new Date(year, 1, 4); }
@@ -1086,18 +1177,19 @@ const DAEUN_SIPSIN_DESC = {
   '정인':  { past:'배움과 인덕 속에서 보호받으며 안정적으로 성장했던 시기예요.',current:'마음이 편안하고 배움에 도움이 되는 흐름이에요.',future:'학문운과 인덕이 따라오는 흐름이 다가와요.' },
 };
 
-function getDaeun(yearCg, monthCg, monthJj, gender) {
+function getDaeun(yearCg, monthCg, monthJj, gender, sy, sm, sd) {
   const yangYear = isYang(yearCg);
   const isMale   = gender === 'M';
   const forward  = (yangYear && isMale) || (!yangYear && !isMale);
+  const daeunStartAge = calcDaeunStartAge(sy, sm, sd, monthJj, forward);
   const result   = [];
   for (let i = 1; i <= 8; i++) {
     const offset = forward ? i : -i;
     const cg = ((monthCg + offset) % 10 + 10) % 10;
     const jj = ((monthJj + offset) % 12 + 12) % 12;
-    result.push({ cg, jj, startAge: i * 10 - 7 + i });
+    result.push({ cg, jj, startAge: daeunStartAge + (i - 1) * 10 });
   }
-  return result;
+  return { daeuns: result, forward, daeunStartAge };
 }
 
 // ============================================================
@@ -1243,11 +1335,15 @@ function calculate() {
       renderTodayFortune(dCg, dJj);
 
       // 대운
-      const daeun = getDaeun(yCg, mCg, mJj, selectedGender);
+      const daeunResult = getDaeun(yCg, mCg, mJj, selectedGender, sy, sm, sd);
+      const daeun = daeunResult.daeuns;
+      const daeunStartAge = daeunResult.daeunStartAge;
       const todayNow = new Date();
       let currentAge = todayNow.getFullYear() - sy;
       if (!((todayNow.getMonth()+1 > sm) || (todayNow.getMonth()+1===sm && todayNow.getDate()>=sd))) currentAge--;
 
+      document.getElementById('daeunInfo').textContent =
+        `대운수 ${daeunStartAge}세 시작 · ${daeunResult.forward ? '순행(順行)' : '역행(逆行)'}`;
       document.getElementById('daeunList').innerHTML = daeun.map(({cg,jj,startAge},idx) => {
         const nextStartAge = idx < daeun.length-1 ? daeun[idx+1].startAge : startAge+10;
         const isCurrent = currentAge >= startAge && currentAge < nextStartAge;
